@@ -1,4 +1,4 @@
-Dans la partie web , finit toute les configurations .verifie la partie produit car ici pour ajouter la photo d'un produit cest impossible donc rend possible comme sur mobile ...verifie tous ce qui reste a implementer et gere cela :<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -873,20 +873,16 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
 
         function initAudio() {
             if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                // Nécessaire pour débloquer l'audio sur certains navigateurs
+                audioContext = new(window.AudioContext || window.webkitAudioContext)();
                 audioContext.resume();
             }
         }
 
-        // Son d'alerte pour nouvelle commande (plus long et plus aigu)
         function playNewOrderSound() {
             if (!soundEnabled) return;
             try {
                 initAudio();
                 const now = audioContext.currentTime;
-
-                // Première note
                 const osc1 = audioContext.createOscillator();
                 const gain1 = audioContext.createGain();
                 osc1.connect(gain1);
@@ -896,8 +892,6 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 osc1.start();
                 gain1.gain.exponentialRampToValueAtTime(0.00001, now + 0.5);
                 osc1.stop(now + 0.5);
-
-                // Deuxième note (plus grave)
                 setTimeout(() => {
                     const osc2 = audioContext.createOscillator();
                     const gain2 = audioContext.createGain();
@@ -909,7 +903,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                     gain2.gain.exponentialRampToValueAtTime(0.00001, now + 1);
                     osc2.stop(now + 1);
                 }, 300);
-            } catch (e) { }
+            } catch (e) {}
         }
 
         function playNotificationSound() {
@@ -925,7 +919,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 o.start();
                 g.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 1);
                 o.stop(audioContext.currentTime + 0.5);
-            } catch (e) { }
+            } catch (e) {}
         }
 
         function playSuccessSound() {
@@ -941,7 +935,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 o.start();
                 g.gain.exponentialRampToValueAtTime(0.00001, audioContext.currentTime + 0.3);
                 o.stop(audioContext.currentTime + 0.3);
-            } catch (e) { }
+            } catch (e) {}
         }
 
         function showNotification(title, message, type = 'info') {
@@ -951,15 +945,20 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
             document.body.appendChild(toast);
             if (type === 'success') playSuccessSound();
             else if (type === 'warning' || type === 'error') playNotificationSound();
-            setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease-out'; setTimeout(() => toast.remove(), 300); }, 4000);
+            setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300); }, 4000);
         }
 
         function toggleSound() {
             soundEnabled = !soundEnabled;
             const btn = document.getElementById('soundToggleBtn');
             if (btn) {
-                if (soundEnabled) { btn.innerHTML = '🔊 Son ON'; btn.style.background = '#6c757d'; showNotification('Notifications sonores', 'Sons activés', 'success'); playSuccessSound(); }
-                else { btn.innerHTML = '🔇 Son OFF'; btn.style.background = '#dc3545'; showNotification('Notifications sonores', 'Sons désactivés', 'info'); }
+                if (soundEnabled) { btn.innerHTML = '🔊 Son ON';
+                    btn.style.background = '#6c757d';
+                    showNotification('Notifications sonores', 'Sons activés', 'success');
+                    playSuccessSound(); } else { btn.innerHTML = '🔇 Son OFF';
+                    btn.style.background = '#dc3545';
+                    showNotification('Notifications sonores', 'Sons désactivés', 'info'); }
             }
         }
 
@@ -976,50 +975,32 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                     const commandes = await response.json();
                     const currentCount = commandes.length;
 
-                    // Détecter les nouvelles commandes (par rapport au dernier compteur)
                     if (lastCommandesCount > 0 && currentCount > lastCommandesCount) {
                         const newCommandes = commandes.slice(0, currentCount - lastCommandesCount);
                         const nouvelleCommande = newCommandes[0];
 
                         if (nouvelleCommande) {
-                            // Afficher une notification
                             showNotification(
                                 '🛎️ NOUVELLE COMMANDE !',
                                 `${nouvelleCommande.code_suivi} - ${nouvelleCommande.client?.nom || 'Client'} - ${nouvelleCommande.total?.toLocaleString() || 0} FCFA`,
                                 'warning'
                             );
-
-                            // Jouer le son d'alerte spécial
                             playNewOrderSound();
-
-                            // Faire clignoter le menu
                             const badge = document.getElementById('newOrdersBadge');
                             if (badge) {
                                 badge.style.display = 'inline-flex';
-                                setTimeout(() => {
-                                    badge.style.display = 'none';
-                                }, 10000);
+                                setTimeout(() => { badge.style.display = 'none'; }, 10000);
                             }
-
-                            // Ajouter un effet visuel sur la page
                             const pageContent = document.getElementById('pageContent');
                             if (pageContent) {
                                 pageContent.classList.add('new-order-alert');
-                                setTimeout(() => {
-                                    pageContent.classList.remove('new-order-alert');
-                                }, 2000);
+                                setTimeout(() => { pageContent.classList.remove('new-order-alert'); }, 2000);
                             }
-
-                            // Mettre à jour les stats si on est sur le dashboard
                             const currentPage = document.querySelector('.menu-item.active')?.dataset.page;
-                            if (currentPage === 'dashboard') {
-                                await loadDashboard();
-                            } else if (currentPage === 'commandes') {
-                                await loadCommandes();
-                            }
+                            if (currentPage === 'dashboard') { await loadDashboard(); } else if (currentPage ===
+                                'commandes') { await loadCommandes(); }
                         }
                     }
-
                     lastCommandesCount = currentCount;
                     lastCommandesList = commandes;
                 }
@@ -1028,12 +1009,9 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
             }
         }
 
-        // Démarrer le polling toutes les 5 secondes
         function startPolling() {
             if (notificationInterval) clearInterval(notificationInterval);
-            notificationInterval = setInterval(() => {
-                checkNewCommandes();
-            }, 5000); // Vérification toutes les 5 secondes
+            notificationInterval = setInterval(() => { checkNewCommandes(); }, 5000);
         }
 
         function stopPolling() {
@@ -1044,7 +1022,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
         }
 
         // ========== APP CONFIGURATION ==========
-        setTimeout(function () {
+        setTimeout(function() {
             const splash = document.getElementById('splashScreen');
             splash.classList.add('fade-out');
             setTimeout(() => splash.style.display = 'none', 800);
@@ -1055,21 +1033,11 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
         let currentUser = null;
         let commandesData = [];
 
-        // Détection automatique de l'URL si le fichier est hébergé sur le même serveur
         function initApiUrl() {
             if (!API_URL) {
                 API_URL = window.location.origin;
                 localStorage.setItem('swam_api_url', API_URL);
             }
-        }
-
-        async function testConnection() {
-            if (!API_URL) return false;
-            try {
-                const response = await fetch(`${API_URL}/api/health`);
-                if (response.ok) return true;
-                return false;
-            } catch (error) { return false; }
         }
 
         function saveApiUrl() {
@@ -1161,7 +1129,6 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                     document.querySelector('.logout-btn').style.display = 'inline-block';
                     showNotification('Connexion réussie', `Bienvenue ${currentUser.nom || 'Admin'}`, 'success');
 
-                    // Initialiser le compteur des commandes
                     const initRes = await fetch(`${API_URL}/api/admin/commandes?limit=50`, {
                         headers: { 'Authorization': `Bearer ${authToken}` }
                     });
@@ -1171,9 +1138,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                         lastCommandesList = commandes;
                     }
 
-                    // Démarrer le polling
                     startPolling();
-
                     loadPage('dashboard');
                 } else {
                     showNotification('Erreur', 'Accès non autorisé - Compte admin requis', 'error');
@@ -1239,12 +1204,24 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
 
             try {
                 switch (page) {
-                    case 'dashboard': await loadDashboard(); break;
-                    case 'commandes': await loadCommandes(); break;
-                    case 'paiements': await loadPaiements(); break;
-                    case 'produits': await loadProduits(); break;
-                    case 'livreurs': await loadLivreurs(); break;
-                    case 'clients': await loadClients(); break;
+                    case 'dashboard':
+                        await loadDashboard();
+                        break;
+                    case 'commandes':
+                        await loadCommandes();
+                        break;
+                    case 'paiements':
+                        await loadPaiements();
+                        break;
+                    case 'produits':
+                        await loadProduits();
+                        break;
+                    case 'livreurs':
+                        await loadLivreurs();
+                        break;
+                    case 'clients':
+                        await loadClients();
+                        break;
                 }
             } catch (error) {
                 contentDiv.innerHTML = `<div class="loading">❌ Erreur: ${error.message}</div>`;
@@ -1332,7 +1309,8 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
         }
 
         function getStatusSelectClass(status) {
-            const classes = { 'en_attente_paiement': 'status-warning', 'preparation': 'status-info', 'livraison': 'status-primary', 'livree': 'status-success', 'annulee': 'status-danger' };
+            const classes = { 'en_attente_paiement': 'status-warning', 'preparation': 'status-info', 'livraison': 'status-primary',
+                'livree': 'status-success', 'annulee': 'status-danger' };
             return classes[status] || '';
         }
 
@@ -1344,21 +1322,26 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                     body: JSON.stringify({ statut: newStatus })
                 });
                 if (response.ok) {
-                    const statusTexts = { 'en_attente_paiement': 'Attente paiement', 'preparation': 'Préparation', 'livraison': 'Livraison', 'livree': 'Livrée', 'annulee': 'Annulée' };
-                    showNotification('✅ Statut mis à jour', `Commande ${codeSuivi} : ${statusTexts[newStatus]}`, 'success');
+                    const statusTexts = { 'en_attente_paiement': 'Attente paiement', 'preparation': 'Préparation',
+                        'livraison': 'Livraison', 'livree': 'Livrée', 'annulee': 'Annulée' };
+                    showNotification('✅ Statut mis à jour', `Commande ${codeSuivi} : ${statusTexts[newStatus]}`,
+                    'success');
                     await loadCommandes();
-                } else { showNotification('❌ Erreur', 'Impossible de mettre à jour le statut', 'error'); await loadCommandes(); }
-            } catch (error) { showNotification('❌ Erreur', 'Erreur réseau', 'error'); await loadCommandes(); }
+                } else { showNotification('❌ Erreur', 'Impossible de mettre à jour le statut', 'error');
+                    await loadCommandes(); }
+            } catch (error) { showNotification('❌ Erreur', 'Erreur réseau', 'error');
+                await loadCommandes(); }
         }
 
         async function loadPaiements() {
             try {
                 const res = await apiRequest('/api/admin/paiements');
                 const paiements = await res.json();
-                if (paiements.length === 0) { document.getElementById('pageContent').innerHTML = '<div class="loading">💳 Aucun paiement en attente</div>'; return; }
+                if (paiements.length === 0) { document.getElementById('pageContent').innerHTML =
+                        '<div class="loading">💳 Aucun paiement en attente</div>'; return; }
                 const html = `
                     <div class="table-container">
-                        </table><thead><tr><th>Code</th><th>Client</th><th>Montant</th><th>Méthode</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
+                        <table><thead><tr><th>Code</th><th>Client</th><th>Montant</th><th>Méthode</th><th>Date</th><th>Statut</th><th>Actions</th></tr></thead>
                         <tbody>${paiements.map(p => `
                             <tr>
                                 <td>${p.code_suivi}${p.client ? `</td><td>${p.client.nom || p.client.telephone}` : '</td><td>-'}${p.montant ? `</td><td>${p.montant.toLocaleString()} FCFA` : '</td><td>-'}${p.methode ? `</td><td>${p.methode}` : '</td><td>-'}${p.date_paiement ? `</td><td>${new Date(p.date_paiement).toLocaleString()}` : '</td><td>-'}</td>
@@ -1379,9 +1362,12 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
         async function validerPaiement(paiementId, codeSuivi, montant) {
             if (!confirm(`Valider le paiement de ${montant.toLocaleString()} FCFA pour la commande ${codeSuivi} ?`)) return;
             try {
-                const res = await apiRequest(`/api/admin/paiements/${paiementId}/valider`, { method: 'POST', body: JSON.stringify({}) });
-                if (res.ok) { showNotification('✅ Paiement validé', `Commande ${codeSuivi} - ${montant.toLocaleString()} FCFA`, 'success'); loadPage('paiements'); }
-                else { showNotification('❌ Erreur', 'Impossible de valider le paiement', 'error'); }
+                const res = await apiRequest(`/api/admin/paiements/${paiementId}/valider`, { method: 'POST',
+                    body: JSON.stringify({}) });
+                if (res.ok) { showNotification('✅ Paiement validé', `Commande ${codeSuivi} - ${montant.toLocaleString()} FCFA`,
+                        'success');
+                    loadPage('paiements'); } else { showNotification('❌ Erreur', 'Impossible de valider le paiement',
+                        'error'); }
             } catch (error) { showNotification('❌ Erreur', 'Erreur réseau', 'error'); }
         }
 
@@ -1393,7 +1379,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 const html = `
                     <button class="btn btn-primary" onclick="showAddProduitModal()" style="margin-bottom:20px;">➕ Ajouter un produit</button>
                     <div class="table-container">
-                        <tr><thead><tr><th>Image</th><th>Nom</th><th>Prix</th><th>Catégorie</th><th>Stock</th><th>Actions</th></tr></thead>
+                        <table><thead><tr><th>Image</th><th>Nom</th><th>Prix</th><th>Catégorie</th><th>Stock</th><th>Actions</th></tr></thead>
                         <tbody>${produits.map(p => `
                             <tr>
                                 <td>${p.image_url ? `<img src="${p.image_url}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">` : '📷'}</td>
@@ -1416,7 +1402,22 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 <div class="form-group"><label>Nom du produit</label><input type="text" id="prodNom" required placeholder="Ex: Poulet braisé"></div>
                 <div class="form-group"><label>Prix (FCFA)</label><input type="number" id="prodPrix" required placeholder="2500"></div>
                 <div class="form-group"><label>Catégorie</label>
-                    <select id="prodCategorie"><option value="Ingrédients">Ingrédients</option><option value="Boissons">Boissons</option><option value="Poissons">Poissons</option></select></div>
+                    <select id="prodCategorie">
+                        <option value="Viandes">Viandes</option>
+                        <option value="Poissons">Poissons</option>
+                        <option value="Legumes">Légumes</option>
+                        <option value="Fruits">Fruits</option>
+                        <option value="Epices">Épices</option>
+                        <option value="Sauces">Sauces</option>
+                        <option value="Patisserie">Pâtisserie</option>
+                        <option value="Produits Laitiers">Produits Laitiers</option>
+                        <option value="Cereales">Céréales</option>
+                        <option value="Conserves">Conserves</option>
+                        <option value="Boissons">Boissons</option>
+                        <option value="Ingrédients">Ingrédients</option>
+                        <option value="Plats Preparés">Plats Préparés</option>
+                    </select>
+                </div>
                 <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="0"></div>
                 <div class="form-group">
                     <label>Image du produit</label>
@@ -1441,15 +1442,19 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 const stock = parseInt(document.getElementById('prodStock').value);
                 const description = document.getElementById('prodDescription').value;
 
-                if (!nom || !prix) { showNotification('Erreur', 'Veuillez remplir tous les champs obligatoires', 'error'); return; }
+                if (!nom || !prix) { showNotification('Erreur', 'Veuillez remplir tous les champs obligatoires',
+                    'error'); return; }
 
                 const data = { nom, prix, categorie, stock, description };
                 if (currentImageUrl) data.image_url = currentImageUrl;
 
                 try {
-                    const res = await apiRequest('/api/admin/produits', { method: 'POST', body: JSON.stringify(data) });
-                    if (res.ok) { showNotification('Succès', 'Produit ajouté avec succès', 'success'); closeModal(); loadPage('produits'); }
-                    else { const error = await res.json(); showNotification('Erreur', error.message || 'Erreur lors de l\'ajout', 'error'); }
+                    const res = await apiRequest('/api/admin/produits', { method: 'POST', body: JSON.stringify(
+                        data) });
+                    if (res.ok) { showNotification('Succès', 'Produit ajouté avec succès', 'success');
+                        closeModal();
+                        loadPage('produits'); } else { const error = await res.json();
+                        showNotification('Erreur', error.message || 'Erreur lors de l\'ajout', 'error'); }
                 } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
             };
             modal.classList.add('active');
@@ -1459,9 +1464,22 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
             const file = event.target.files[0];
             if (!file) return;
 
+            // Vérification du type de fichier
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showNotification('Erreur', 'Format d\'image non supporté. Utilisez JPG, PNG, GIF ou WEBP.', 'error');
+                return;
+            }
+
+            // Vérification de la taille (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                showNotification('Erreur', 'L\'image ne doit pas dépasser 5MB.', 'error');
+                return;
+            }
+
             // Aperçu local
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = function(e) {
                 const previewImg = document.getElementById('imagePreviewImg');
                 const previewContainer = document.getElementById('imagePreviewContainer');
                 const uploadArea = document.getElementById('imageUploadArea');
@@ -1475,6 +1493,17 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
             isUploading = true;
             const progressDiv = document.getElementById('uploadProgress');
             if (progressDiv) progressDiv.style.display = 'block';
+            // Animation de la barre de progression
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 10;
+                    if (progress > 90) progress = 90;
+                    progressFill.style.width = progress + '%';
+                }, 200);
+                window._uploadInterval = interval;
+            }
 
             const formData = new FormData();
             formData.append('image', file);
@@ -1486,19 +1515,35 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                     body: formData
                 });
 
+                if (window._uploadInterval) {
+                    clearInterval(window._uploadInterval);
+                    window._uploadInterval = null;
+                }
+
                 if (response.ok) {
                     const data = await response.json();
                     currentImageUrl = data.image_url;
-                    if (progressDiv) progressDiv.style.display = 'none';
-                    showNotification('Image uploadée', 'L\'image a été uploadée avec succès', 'success');
+                    if (progressFill) progressFill.style.width = '100%';
+                    setTimeout(() => {
+                        if (progressDiv) progressDiv.style.display = 'none';
+                        if (progressFill) progressFill.style.width = '0%';
+                    }, 500);
+                    showNotification('✅ Image uploadée', 'L\'image a été uploadée avec succès', 'success');
                 } else {
+                    const error = await response.json();
                     if (progressDiv) progressDiv.style.display = 'none';
-                    showNotification('Erreur', 'Erreur lors de l\'upload', 'error');
+                    if (progressFill) progressFill.style.width = '0%';
+                    showNotification('❌ Erreur', error.message || 'Erreur lors de l\'upload', 'error');
                     removeSelectedImage();
                 }
             } catch (error) {
+                if (window._uploadInterval) {
+                    clearInterval(window._uploadInterval);
+                    window._uploadInterval = null;
+                }
                 if (progressDiv) progressDiv.style.display = 'none';
-                showNotification('Erreur', 'Erreur réseau lors de l\'upload', 'error');
+                if (progressFill) progressFill.style.width = '0%';
+                showNotification('❌ Erreur', 'Erreur réseau lors de l\'upload', 'error');
                 removeSelectedImage();
             } finally {
                 isUploading = false;
@@ -1513,6 +1558,14 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
             if (previewContainer) previewContainer.style.display = 'none';
             if (uploadArea) uploadArea.style.display = 'block';
             if (fileInput) fileInput.value = '';
+            const progressDiv = document.getElementById('uploadProgress');
+            if (progressDiv) progressDiv.style.display = 'none';
+            const progressFill = document.getElementById('progressFill');
+            if (progressFill) progressFill.style.width = '0%';
+            if (window._uploadInterval) {
+                clearInterval(window._uploadInterval);
+                window._uploadInterval = null;
+            }
         }
 
         async function loadLivreurs() {
@@ -1552,8 +1605,7 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
 
         function showLivreursTab(tab) {
             const container = document.getElementById('livreursContent');
-            if (tab === 'actifs') { loadLivreurs(); }
-            else if (tab === 'attente') {
+            if (tab === 'actifs') { loadLivreurs(); } else if (tab === 'attente') {
                 const livreurs = window.livreursEnAttente || [];
                 container.innerHTML = `
                     <div class="table-container">
@@ -1632,7 +1684,8 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 const res = await apiRequest(`/api/admin/commandes/${commandeId}/rechercher-livreur`, { method: 'POST' });
                 const data = await res.json();
                 if (res.ok) {
-                    showNotification('🔍 Recherche lancée', `${data.notifications_envoyees} notification(s) envoyée(s) aux livreurs`, 'success');
+                    showNotification('🔍 Recherche lancée', `${data.notifications_envoyees} notification(s) envoyée(s) aux livreurs`,
+                        'success');
                     showLivreursTab('assignation');
                 } else {
                     showNotification('Erreur', 'Erreur lors du lancement de la recherche', 'error');
@@ -1716,32 +1769,42 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
         }
 
         function editProduit(id) { showNotification('Info', 'Fonctionnalité de modification à venir', 'info'); }
+
         function viewClientCommandes(clientId) { showNotification('Info', 'Fonctionnalité à venir', 'info'); }
 
         function getStatusClass(status) {
-            const classes = { 'en_attente_paiement': 'badge-warning', 'preparation': 'badge-info', 'livraison': 'badge-primary', 'livree': 'badge-success', 'annulee': 'badge-danger' };
+            const classes = { 'en_attente_paiement': 'badge-warning', 'preparation': 'badge-info', 'livraison': 'badge-primary',
+                'livree': 'badge-success', 'annulee': 'badge-danger' };
             return classes[status] || 'badge-secondary';
         }
+
         function getStatusText(status) {
-            const texts = { 'en_attente_paiement': 'Attente paiement', 'preparation': 'Préparation', 'livraison': 'Livraison', 'livree': 'Livrée', 'annulee': 'Annulée' };
+            const texts = { 'en_attente_paiement': 'Attente paiement', 'preparation': 'Préparation', 'livraison': 'Livraison',
+                'livree': 'Livrée', 'annulee': 'Annulée' };
             return texts[status] || status;
         }
+
         function getPaymentClass(status) { return status === 'valide' ? 'badge-success' : 'badge-warning'; }
 
         function filterCommandes() {
             const search = document.getElementById('searchCommande')?.value.toLowerCase();
             if (!search) return;
             const rows = document.querySelectorAll('#commandesList tr');
-            rows.forEach(row => { const code = row.cells[0]?.textContent.toLowerCase() || ''; row.style.display = code.includes(search) ? '' : 'none'; });
+            rows.forEach(row => { const code = row.cells[0]?.textContent.toLowerCase() || '';
+                row.style.display = code.includes(search) ? '' : 'none'; });
         }
+
         function filterClients() {
             const search = document.getElementById('searchClient')?.value.toLowerCase();
             if (!search) return;
             const rows = document.querySelectorAll('#clientsList tr');
-            rows.forEach(row => { const name = row.dataset.name || ''; const phone = row.dataset.phone || ''; row.style.display = name.includes(search) || phone.includes(search) ? '' : 'none'; });
+            rows.forEach(row => { const name = row.dataset.name || '';
+                const phone = row.dataset.phone || '';
+                row.style.display = name.includes(search) || phone.includes(search) ? '' : 'none'; });
         }
 
         function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
 
         // Event listeners
@@ -1760,14 +1823,13 @@ Dans la partie web , finit toute les configurations .verifie la partie produit c
                 document.getElementById('userName').textContent = currentUser.nom || 'Admin';
                 document.querySelector('.logout-btn').style.display = 'inline-block';
             }
-            // Récupérer le compteur initial
             fetch(`${API_URL}/api/admin/commandes?limit=50`, {
                 headers: { 'Authorization': `Bearer ${authToken}` }
             }).then(res => res.json()).then(commandes => {
                 lastCommandesCount = commandes.length;
                 lastCommandesList = commandes;
                 startPolling();
-            }).catch(() => { });
+            }).catch(() => {});
             loadPage('dashboard');
         } else {
             showLoginPage();
