@@ -319,11 +319,12 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 600px;
         }
 
         th,
         td {
-            padding: 15px;
+            padding: 12px 15px;
             text-align: left;
             border-bottom: 1px solid #ffe0f0;
         }
@@ -379,6 +380,9 @@
             font-size: 12px;
             transition: all 0.3s;
             margin: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
 
         .btn-sm {
@@ -401,9 +405,19 @@
             color: white;
         }
 
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
         .btn-warning {
             background: #ffc107;
             color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-1px);
         }
 
         .btn-danger {
@@ -411,9 +425,19 @@
             color: white;
         }
 
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+
         .btn-secondary {
             background: #6c757d;
             color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
         }
 
         .modal {
@@ -483,6 +507,10 @@
             color: #db2777;
         }
 
+        .form-group label .required {
+            color: #dc3545;
+        }
+
         .form-group input,
         .form-group select,
         .form-group textarea {
@@ -491,6 +519,7 @@
             border: 1px solid #ffe0f0;
             border-radius: 6px;
             font-size: 14px;
+            transition: border-color 0.3s;
         }
 
         .form-group input:focus,
@@ -546,6 +575,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .remove-image:hover {
+            transform: scale(1.1);
         }
 
         .upload-progress {
@@ -757,6 +791,20 @@
             }
         }
 
+        .product-image-thumb {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #ffe0f0;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -789,6 +837,16 @@
                 right: 10px;
                 left: 10px;
                 max-width: none;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .action-buttons {
+                flex-direction: column;
             }
         }
 
@@ -1371,7 +1429,8 @@
             } catch (error) { showNotification('❌ Erreur', 'Erreur réseau', 'error'); }
         }
 
-        // ========== PRODUITS ==========
+        // ========== GESTION DES PRODUITS ==========
+
         async function loadProduits() {
             try {
                 const res = await apiRequest('/api/admin/produits');
@@ -1379,29 +1438,280 @@
                 const html = `
                     <button class="btn btn-primary" onclick="showAddProduitModal()" style="margin-bottom:20px;">➕ Ajouter un produit</button>
                     <div class="table-container">
-                        <table><thead><tr><th>Image</th><th>Nom</th><th>Prix</th><th>Catégorie</th><th>Stock</th><th>Actions</th></tr></thead>
-                        <tbody>${produits.map(p => `
-                            <tr>
-                                <td>${p.image_url ? `<img src="${p.image_url}" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">` : '📷'}</td>
-                                <td>${p.nom}</td><td>${p.prix.toLocaleString()} FCFA</td><td>${p.categorie}</td><td>${p.stock}</td>
-                                <td><button class="btn btn-sm btn-warning" onclick="editProduit(${p.id})">Modifier</button></td>
-                            </tr>
-                        `).join('')}</tbody>
-                    </table>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Image</th>
+                                    <th>Nom</th>
+                                    <th>Prix</th>
+                                    <th>Catégorie</th>
+                                    <th>Stock</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${produits.map(p => `
+                                    <tr>
+                                        <td>${p.image_url ? `<img src="${p.image_url}" class="product-image-thumb">` : '📷'}</td>
+                                        <td><strong>${p.nom}</strong></td>
+                                        <td>${p.prix.toLocaleString()} FCFA</td>
+                                        <td><span class="badge badge-primary">${p.categorie}</span></td>
+                                        <td>${p.stock}</td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button class="btn btn-sm btn-warning" onclick="editProduit(${p.id})" title="Modifier">✏️</button>
+                                                <button class="btn btn-sm btn-danger" onclick="deleteProduit(${p.id}, '${p.nom.replace(/'/g, "\\'")}')" title="Supprimer">🗑️</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
                 `;
                 document.getElementById('pageContent').innerHTML = html;
-            } catch (error) { console.error(error); }
+            } catch (error) {
+                console.error('Erreur chargement produits:', error);
+                document.getElementById('pageContent').innerHTML = '<div class="loading">❌ Erreur lors du chargement des produits</div>';
+            }
         }
 
+        // ========== SUPPRESSION D'UN PRODUIT ==========
+        async function deleteProduit(produitId, produitNom) {
+            if (!confirm(`⚠️ Voulez-vous vraiment supprimer le produit "${produitNom}" ?\n\nCette action est irréversible !`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/api/admin/produits/${produitId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    showNotification('✅ Produit supprimé', `"${produitNom}" a été supprimé avec succès`, 'success');
+                    await loadProduits();
+                } else {
+                    const error = await response.json();
+                    showNotification('❌ Erreur', error.message || 'Impossible de supprimer le produit', 'error');
+                }
+            } catch (error) {
+                console.error('Erreur lors de la suppression:', error);
+                showNotification('❌ Erreur', 'Erreur réseau lors de la suppression', 'error');
+            }
+        }
+
+        // ========== MODIFICATION D'UN PRODUIT ==========
+        async function editProduit(produitId) {
+            try {
+                const response = await fetch(`${API_URL}/api/admin/produits/${produitId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    showNotification('❌ Erreur', 'Impossible de charger le produit', 'error');
+                    return;
+                }
+
+                const produit = await response.json();
+                let editImageUrl = produit.image_url || null;
+                let isUploading = false;
+
+                const modal = document.getElementById('modal');
+                document.getElementById('modalTitle').textContent = '✏️ Modifier le produit';
+                document.getElementById('modalBody').innerHTML = `
+                    <div class="form-group">
+                        <label>Nom du produit <span class="required">*</span></label>
+                        <input type="text" id="editProdNom" value="${produit.nom}" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Prix (FCFA) <span class="required">*</span></label>
+                        <input type="number" id="editProdPrix" value="${produit.prix}" required step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Catégorie</label>
+                        <select id="editProdCategorie">
+                            <option value="Viandes" ${produit.categorie === 'Viandes' ? 'selected' : ''}>Viandes</option>
+                            <option value="Poissons" ${produit.categorie === 'Poissons' ? 'selected' : ''}>Poissons</option>
+                            <option value="Legumes" ${produit.categorie === 'Legumes' ? 'selected' : ''}>Légumes</option>
+                            <option value="Fruits" ${produit.categorie === 'Fruits' ? 'selected' : ''}>Fruits</option>
+                            <option value="Epices" ${produit.categorie === 'Epices' ? 'selected' : ''}>Épices</option>
+                            <option value="Sauces" ${produit.categorie === 'Sauces' ? 'selected' : ''}>Sauces</option>
+                            <option value="Patisserie" ${produit.categorie === 'Patisserie' ? 'selected' : ''}>Pâtisserie</option>
+                            <option value="Produits Laitiers" ${produit.categorie === 'Produits Laitiers' ? 'selected' : ''}>Produits Laitiers</option>
+                            <option value="Cereales" ${produit.categorie === 'Cereales' ? 'selected' : ''}>Céréales</option>
+                            <option value="Conserves" ${produit.categorie === 'Conserves' ? 'selected' : ''}>Conserves</option>
+                            <option value="Boissons" ${produit.categorie === 'Boissons' ? 'selected' : ''}>Boissons</option>
+                            <option value="Ingrédients" ${produit.categorie === 'Ingrédients' ? 'selected' : ''}>Ingrédients</option>
+                            <option value="Plats Preparés" ${produit.categorie === 'Plats Preparés' ? 'selected' : ''}>Plats Préparés</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Stock</label>
+                        <input type="number" id="editProdStock" value="${produit.stock}" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>Image actuelle</label>
+                        ${produit.image_url ? `<div style="margin: 10px 0;"><img src="${produit.image_url}" style="max-width:150px;max-height:150px;border-radius:8px;border:2px solid #ffe0f0;object-fit:cover;"></div>` : '<p style="color:#999;">Aucune image</p>'}
+                        <div class="image-upload-area" onclick="document.getElementById('editImageFileInput').click()">
+                            📸 Cliquez pour changer l'image
+                            <input type="file" id="editImageFileInput" accept="image/*" style="display:none;" onchange="handleEditImageSelect(event)">
+                        </div>
+                        <div id="editImagePreviewContainer" style="display:none;" class="image-preview">
+                            <img id="editImagePreviewImg" src="" alt="Aperçu">
+                            <button class="remove-image" onclick="removeEditImage()">✖</button>
+                        </div>
+                        <div class="upload-progress" id="editUploadProgress" style="display:none;">
+                            <div class="progress-bar"><div class="progress-fill" id="editProgressFill" style="width:0%;"></div></div>
+                            <p style="font-size:12px; margin-top:5px;">Upload en cours...</p>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="editProdDescription" rows="3">${produit.description || ''}</textarea>
+                    </div>
+                    <input type="hidden" id="editProdId" value="${produit.id}">
+                `;
+
+                // Fonction pour gérer l'upload de la nouvelle image
+                window.handleEditImageSelect = async function(event) {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                    if (!allowedTypes.includes(file.type)) {
+                        showNotification('Erreur', 'Format d\'image non supporté', 'error');
+                        return;
+                    }
+
+                    if (file.size > 5 * 1024 * 1024) {
+                        showNotification('Erreur', 'L\'image ne doit pas dépasser 5MB.', 'error');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('editImagePreviewImg').src = e.target.result;
+                        document.getElementById('editImagePreviewContainer').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+
+                    isUploading = true;
+                    const progressDiv = document.getElementById('editUploadProgress');
+                    if (progressDiv) progressDiv.style.display = 'block';
+
+                    const formData = new FormData();
+                    formData.append('image', file);
+
+                    try {
+                        const response = await fetch(`${API_URL}/api/admin/upload-image`, {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${authToken}` },
+                            body: formData
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            editImageUrl = data.image_url;
+                            if (progressDiv) progressDiv.style.display = 'none';
+                            showNotification('✅ Image uploadée', 'Nouvelle image uploadée avec succès', 'success');
+                        } else {
+                            if (progressDiv) progressDiv.style.display = 'none';
+                            showNotification('❌ Erreur', 'Erreur lors de l\'upload', 'error');
+                        }
+                    } catch (error) {
+                        if (progressDiv) progressDiv.style.display = 'none';
+                        showNotification('❌ Erreur', 'Erreur réseau', 'error');
+                    } finally {
+                        isUploading = false;
+                    }
+                };
+
+                window.removeEditImage = function() {
+                    editImageUrl = null;
+                    document.getElementById('editImagePreviewContainer').style.display = 'none';
+                    document.getElementById('editImageFileInput').value = '';
+                };
+
+                // Confirmer la modification
+                document.getElementById('modalConfirmBtn').onclick = async () => {
+                    if (isUploading) {
+                        showNotification('Attente', 'Veuillez attendre la fin de l\'upload', 'warning');
+                        return;
+                    }
+
+                    const nom = document.getElementById('editProdNom').value.trim();
+                    const prix = parseFloat(document.getElementById('editProdPrix').value);
+                    const categorie = document.getElementById('editProdCategorie').value;
+                    const stock = parseInt(document.getElementById('editProdStock').value) || 0;
+                    const description = document.getElementById('editProdDescription').value.trim();
+                    const produitId = parseInt(document.getElementById('editProdId').value);
+
+                    if (!nom || !prix) {
+                        showNotification('Erreur', 'Veuillez remplir tous les champs obligatoires', 'error');
+                        return;
+                    }
+
+                    const data = { nom, prix, categorie, stock, description };
+                    if (editImageUrl) {
+                        data.image_url = editImageUrl;
+                    }
+
+                    try {
+                        const response = await fetch(`${API_URL}/api/admin/produits/${produitId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Authorization': `Bearer ${authToken}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(data)
+                        });
+
+                        if (response.ok) {
+                            showNotification('✅ Succès', 'Produit modifié avec succès', 'success');
+                            closeModal();
+                            await loadProduits();
+                        } else {
+                            const error = await response.json();
+                            showNotification('❌ Erreur', error.message || 'Erreur lors de la modification', 'error');
+                        }
+                    } catch (error) {
+                        showNotification('❌ Erreur', 'Erreur réseau', 'error');
+                    }
+                };
+
+                document.getElementById('modalConfirmBtn').style.display = 'inline-block';
+                document.getElementById('modalConfirmBtn').textContent = '💾 Enregistrer';
+                modal.classList.add('active');
+
+            } catch (error) {
+                console.error('Erreur:', error);
+                showNotification('❌ Erreur', 'Erreur lors du chargement du produit', 'error');
+            }
+        }
+
+        // ========== AJOUT D'UN PRODUIT ==========
         function showAddProduitModal() {
             currentImageUrl = null;
             const modal = document.getElementById('modal');
-            document.getElementById('modalTitle').textContent = 'Ajouter un produit';
+            document.getElementById('modalTitle').textContent = '➕ Ajouter un produit';
             document.getElementById('modalBody').innerHTML = `
-                <div class="form-group"><label>Nom du produit</label><input type="text" id="prodNom" required placeholder="Ex: Poulet braisé"></div>
-                <div class="form-group"><label>Prix (FCFA)</label><input type="number" id="prodPrix" required placeholder="2500"></div>
-                <div class="form-group"><label>Catégorie</label>
+                <div class="form-group">
+                    <label>Nom du produit <span class="required">*</span></label>
+                    <input type="text" id="prodNom" required placeholder="Ex: Poulet braisé">
+                </div>
+                <div class="form-group">
+                    <label>Prix (FCFA) <span class="required">*</span></label>
+                    <input type="number" id="prodPrix" required placeholder="2500" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Catégorie</label>
                     <select id="prodCategorie">
                         <option value="Viandes">Viandes</option>
                         <option value="Poissons">Poissons</option>
@@ -1418,7 +1728,10 @@
                         <option value="Plats Preparés">Plats Préparés</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Stock</label><input type="number" id="prodStock" value="0"></div>
+                <div class="form-group">
+                    <label>Stock</label>
+                    <input type="number" id="prodStock" value="0" min="0">
+                </div>
                 <div class="form-group">
                     <label>Image du produit</label>
                     <div class="image-upload-area" id="imageUploadArea" onclick="document.getElementById('imageFileInput').click()">
@@ -1429,34 +1742,55 @@
                         <img id="imagePreviewImg" src="" alt="Aperçu">
                         <button class="remove-image" onclick="removeSelectedImage()">✖</button>
                     </div>
-                    <div class="upload-progress" id="uploadProgress"><div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div><p style="font-size:12px; margin-top:5px;">Upload en cours...</p></div>
+                    <div class="upload-progress" id="uploadProgress" style="display:none;">
+                        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
+                        <p style="font-size:12px; margin-top:5px;">Upload en cours...</p>
+                    </div>
                 </div>
-                <div class="form-group"><label>Description</label><textarea id="prodDescription" placeholder="Description du produit..."></textarea></div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="prodDescription" rows="3" placeholder="Description du produit..."></textarea>
+                </div>
             `;
 
             document.getElementById('modalConfirmBtn').onclick = async () => {
-                if (isUploading) { showNotification('Attente', 'Veuillez attendre la fin de l\'upload', 'warning'); return; }
-                const nom = document.getElementById('prodNom').value;
+                if (isUploading) {
+                    showNotification('Attente', 'Veuillez attendre la fin de l\'upload', 'warning');
+                    return;
+                }
+                const nom = document.getElementById('prodNom').value.trim();
                 const prix = parseFloat(document.getElementById('prodPrix').value);
                 const categorie = document.getElementById('prodCategorie').value;
-                const stock = parseInt(document.getElementById('prodStock').value);
-                const description = document.getElementById('prodDescription').value;
+                const stock = parseInt(document.getElementById('prodStock').value) || 0;
+                const description = document.getElementById('prodDescription').value.trim();
 
-                if (!nom || !prix) { showNotification('Erreur', 'Veuillez remplir tous les champs obligatoires',
-                    'error'); return; }
+                if (!nom || !prix) {
+                    showNotification('Erreur', 'Veuillez remplir tous les champs obligatoires', 'error');
+                    return;
+                }
 
                 const data = { nom, prix, categorie, stock, description };
                 if (currentImageUrl) data.image_url = currentImageUrl;
 
                 try {
-                    const res = await apiRequest('/api/admin/produits', { method: 'POST', body: JSON.stringify(
-                        data) });
-                    if (res.ok) { showNotification('Succès', 'Produit ajouté avec succès', 'success');
+                    const res = await apiRequest('/api/admin/produits', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    if (res.ok) {
+                        showNotification('Succès', 'Produit ajouté avec succès', 'success');
                         closeModal();
-                        loadPage('produits'); } else { const error = await res.json();
-                        showNotification('Erreur', error.message || 'Erreur lors de l\'ajout', 'error'); }
-                } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
+                        loadPage('produits');
+                    } else {
+                        const error = await res.json();
+                        showNotification('Erreur', error.message || 'Erreur lors de l\'ajout', 'error');
+                    }
+                } catch (error) {
+                    showNotification('Erreur', 'Erreur réseau', 'error');
+                }
             };
+            document.getElementById('modalConfirmBtn').style.display = 'inline-block';
+            document.getElementById('modalConfirmBtn').textContent = '➕ Ajouter';
             modal.classList.add('active');
         }
 
@@ -1464,20 +1798,17 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            // Vérification du type de fichier
             const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             if (!allowedTypes.includes(file.type)) {
                 showNotification('Erreur', 'Format d\'image non supporté. Utilisez JPG, PNG, GIF ou WEBP.', 'error');
                 return;
             }
 
-            // Vérification de la taille (max 5MB)
             if (file.size > 5 * 1024 * 1024) {
                 showNotification('Erreur', 'L\'image ne doit pas dépasser 5MB.', 'error');
                 return;
             }
 
-            // Aperçu local
             const reader = new FileReader();
             reader.onload = function(e) {
                 const previewImg = document.getElementById('imagePreviewImg');
@@ -1489,11 +1820,9 @@
             };
             reader.readAsDataURL(file);
 
-            // Upload vers Cloudinary via backend
             isUploading = true;
             const progressDiv = document.getElementById('uploadProgress');
             if (progressDiv) progressDiv.style.display = 'block';
-            // Animation de la barre de progression
             const progressFill = document.getElementById('progressFill');
             if (progressFill) {
                 let progress = 0;
@@ -1568,6 +1897,7 @@
             }
         }
 
+        // ========== LIVREURS ==========
         async function loadLivreurs() {
             try {
                 const livreursRes = await apiRequest('/api/admin/livreurs');
@@ -1706,6 +2036,7 @@
             } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
         }
 
+        // ========== CLIENTS ==========
         async function loadClients() {
             try {
                 const res = await apiRequest('/api/admin/users');
@@ -1729,6 +2060,7 @@
             } catch (error) { console.error(error); }
         }
 
+        // ========== FONCTIONS UTILES ==========
         async function viewCommande(code) {
             try {
                 const res = await apiRequest(`/api/admin/commandes/${code}`);
@@ -1767,8 +2099,6 @@
                 modal.classList.add('active');
             } catch (error) { showNotification('Erreur', 'Erreur', 'error'); }
         }
-
-        function editProduit(id) { showNotification('Info', 'Fonctionnalité de modification à venir', 'info'); }
 
         function viewClientCommandes(clientId) { showNotification('Info', 'Fonctionnalité à venir', 'info'); }
 
