@@ -1898,76 +1898,187 @@
         }
 
         // ========== LIVREURS ==========
-        async function loadLivreurs() {
-            try {
-                const livreursRes = await apiRequest('/api/admin/livreurs');
-                const livreurs = await livreursRes.json();
-                const commandesAttenteRes = await apiRequest('/api/admin/commandes-en-attente-livreur');
-                const commandesAttente = await commandesAttenteRes.json();
-                const attenteRes = await apiRequest('/api/admin/livreurs-en-attente');
-                const enAttente = await attenteRes.json();
+        
+        // ========== LIVREURS ==========
 
-                const html = `
-                    <div class="tabs">
-                        <button class="tab active" onclick="showLivreursTab('actifs')">Livreurs actifs (${livreurs.length})</button>
-                        <button class="tab" onclick="showLivreursTab('attente')">En attente (${enAttente.length})</button>
-                        <button class="tab" onclick="showLivreursTab('assignation')">À assigner (${commandesAttente.length})</button>
-                    </div>
-                    <div id="livreursContent">
-                        <div class="table-container">
-                            <table><thead><tr><th>Nom</th><th>Téléphone</th><th>Statut</th><th>Actions</th></tr></thead>
-                            <tbody>${livreurs.map(l => `
-                                <tr>
-                                    <td>${l.nom}</td><td>${l.telephone}</td>
-                                    <td><span class="badge ${l.statut === 'disponible' ? 'badge-success' : 'badge-warning'}">${l.statut}</span></td>
-                                    <td><button class="btn btn-sm btn-primary" onclick="viewLivreurCommandes(${l.id})">Commandes</button></td>
-                                </tr>
-                            `).join('')}</tbody>
-                        </table>
-                        </div>
-                    </div>
-                `;
-                document.getElementById('pageContent').innerHTML = html;
+        async function loadLivreurs(tab = 'actifs') {
+            try {
+                const [livreursRes, commandesRes, attenteRes] = await Promise.all([
+                    apiRequest('/api/admin/livreurs'),
+                    apiRequest('/api/admin/commandes-en-attente-livreur'),
+                    apiRequest('/api/admin/livreurs-en-attente')
+                ]);
+
+                if (!livreursRes.ok || !commandesRes.ok || !attenteRes.ok) {
+                    throw new Error('Impossible de charger les données des livreurs.');
+                }
+
+                const [livreurs, commandesAttente, enAttente] = await Promise.all([
+                    livreursRes.json(),
+                    commandesRes.json(),
+                    attenteRes.json()
+                ]);
+
+                window.livreursActifs = livreurs;
                 window.livreursEnAttente = enAttente;
                 window.commandesAttenteLivreur = commandesAttente;
-            } catch (error) { console.error(error); }
+
+                document.getElementById('pageContent').innerHTML = `
+                    <div class="tabs">
+                        <button class="tab ${tab === 'actifs' ? 'active' : ''}"
+                            onclick="showLivreursTab('actifs')">
+                            Livreurs actifs (${livreurs.length})
+                        </button>
+                        <button class="tab ${tab === 'attente' ? 'active' : ''}"
+                            onclick="showLivreursTab('attente')">
+                            En attente (${enAttente.length})
+                        </button>
+                        <button class="tab ${tab === 'assignation' ? 'active' : ''}"
+                            onclick="showLivreursTab('assignation')">
+                            À assigner (${commandesAttente.length})
+                        </button>
+                    </div>
+                    <div id="livreursContent"></div>
+                `;
+
+                renderLivreursTab(tab);
+            } catch (error) {
+                console.error('Erreur chargement livreurs :', error);
+                document.getElementById('pageContent').innerHTML =
+                    '<div class="loading">❌ Erreur lors du chargement des livreurs. Vérifiez le backend et réessayez.</div>';
+            }
         }
 
+        // Chaque changement d'onglet recharge les données depuis le backend.
         function showLivreursTab(tab) {
-            const container = document.getElementById('livreursContent');
-            if (tab === 'actifs') { loadLivreurs(); } else if (tab === 'attente') {
-                const livreurs = window.livreursEnAttente || [];
-                container.innerHTML = `
+            loadLivreurs(tab);
+        }
+
+        function renderLivreursTab(tab) {
+            const box = document.getElementById('livreursContent');
+            if (!box) return;
+
+            if (tab === 'actifs') {
+                const livreurs = window.livreursActifs || [];
+
+                box.innerHTML = livreurs.length ? `
                     <div class="table-container">
-                        <table><thead><tr><th>Nom</th><th>Téléphone</th><th>Date inscription</th><th>Actions</th></tr></thead>
-                        <tbody>${livreurs.map(l => `
-                            <tr>
-                                <td>${l.nom || 'Sans nom'}</td><td>${l.telephone}</td>
-                                <td>${l.date_inscription ? new Date(l.date_inscription).toLocaleDateString() : '-'}</td>
-                                <td><button class="btn btn-sm btn-success" onclick="validerLivreur(${l.id})">Valider</button></td>
-                            </tr>
-                        `).join('')}</tbody>
-                    </table>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Téléphone</th>
+                                    <th>Statut</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${livreurs.map(l => `
+                                    <tr>
+                                        <td>${l.nom || 'Sans nom'}</td>
+                                        <td>${l.telephone || '-'}</td>
+                                        <td>
+                                            <span class="badge ${l.statut === 'disponible' ? 'badge-success' : 'badge-warning'}">
+                                                ${l.statut || 'inconnu'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary"
+                                                onclick="viewLivreurCommandes(${Number(l.id)})">
+                                                Commandes
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
                     </div>
-                `;
+                ` : '<div class="loading">Aucun livreur actif</div>';
+
+            } else if (tab === 'attente') {
+                const livreurs = window.livreursEnAttente || [];
+
+                box.innerHTML = livreurs.length ? `
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Téléphone</th>
+                                    <th>Date inscription</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${livreurs.map(l => `
+                                    <tr>
+                                        <td>${l.nom || 'Sans nom'}</td>
+                                        <td>${l.telephone || '-'}</td>
+                                        <td>${l.date_inscription
+                                            ? new Date(l.date_inscription).toLocaleDateString('fr-FR')
+                                            : '-'}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success"
+                                                onclick="validerLivreur(${Number(l.id)})">
+                                                Valider
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<div class="loading">Aucun livreur en attente de validation</div>';
+
             } else if (tab === 'assignation') {
                 const commandes = window.commandesAttenteLivreur || [];
-                container.innerHTML = `
+
+                box.innerHTML = commandes.length ? `
                     <div class="table-container">
-                        <table><thead><tr><th>Code</th><th>Client</th><th>Adresse</th><th>Total</th><th>Frais livraison</th><th>Actions</th></tr></thead>
-                        <tbody>${commandes.map(c => `
-                            <tr>
-                                <td>${c.code_suivi}</td><td>${c.client.nom || c.client.telephone}</td>
-                                <td>${c.adresse ? c.adresse.substring(0, 50) + '...' : '-'}</td>
-                                <td>${c.total ? c.total.toLocaleString() + ' FCFA' : '0 FCFA'}</td>
-                                <td>${c.frais_livraison ? c.frais_livraison.toLocaleString() + ' FCFA' : '0 FCFA'}</td>
-                                <td>
-                                    <button class="btn btn-sm btn-primary" onclick="showAssignLivreurModal(${c.id}, '${c.code_suivi}')">Assigner livreur</button>
-                                    <button class="btn btn-sm btn-success" onclick="lancerRechercheLivreur(${c.id})">🔍 Rechercher</button>
-                                 </td>
-                            </tr>
-                        `).join('')}</tbody>
-                    </table>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Client</th>
+                                    <th>Adresse</th>
+                                    <th>Total</th>
+                                    <th>Frais</th>
+                                    <th>Recherche</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${commandes.map(c => `
+                                    <tr>
+                                        <td>${c.code_suivi || '-'}</td>
+                                        <td>${c.client?.nom || c.client?.telephone || '-'}</td>
+                                        <td>${c.adresse || '-'}</td>
+                                        <td>${Number(c.total || 0).toLocaleString('fr-FR')} FCFA</td>
+                                        <td>${Number(c.frais_livraison || 0).toLocaleString('fr-FR')} FCFA</td>
+                                        <td>
+                                            <span class="badge ${c.recherche_livreur ? 'badge-info' : 'badge-warning'}">
+                                                ${c.recherche_livreur ? 'En cours' : 'Non lancée'}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary"
+                                                onclick="showAssignLivreurModal(${Number(c.id)}, ${JSON.stringify(String(c.code_suivi || ''))})">
+                                                Assigner livreur
+                                            </button>
+                                            <button class="btn btn-sm btn-success"
+                                                onclick="lancerRechercheLivreur(${Number(c.id)})">
+                                                ${c.recherche_livreur ? '🔄 Relancer' : '🔍 Lancer la recherche'}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : `
+                    <div class="loading">
+                        Aucune commande en attente de livreur.<br>
+                        <small>Une commande apparaît ici lorsque son paiement est validé et qu'elle attend un livreur.</small>
                     </div>
                 `;
             }
@@ -1976,65 +2087,157 @@
         async function showAssignLivreurModal(commandeId, codeSuivi) {
             try {
                 const res = await apiRequest('/api/admin/livreurs-disponibles');
+
+                if (!res.ok) {
+                    throw new Error('Impossible de charger les livreurs disponibles.');
+                }
+
                 const livreurs = await res.json();
-                if (livreurs.length === 0) { showNotification('Aucun livreur', 'Aucun livreur disponible', 'warning'); return; }
+
+                if (!livreurs.length) {
+                    showNotification('Aucun livreur', 'Aucun livreur disponible actuellement.', 'warning');
+                    return;
+                }
+
                 const modal = document.getElementById('modal');
-                document.getElementById('modalTitle').textContent = `Assigner un livreur - Commande ${codeSuivi}`;
+                document.getElementById('modalTitle').textContent =
+                    `Assigner un livreur - Commande ${codeSuivi}`;
+
                 document.getElementById('modalBody').innerHTML = `
                     <div class="form-group">
-                        <label>Choisir un livreur</label>
-                        <select id="livreurSelect" style="width:100%; padding:10px;">
-                            ${livreurs.map(l => `<option value="${l.id}">${l.nom} - ${l.telephone}</option>`).join('')}
+                        <label for="livreurSelect">Choisir un livreur</label>
+                        <select id="livreurSelect" style="width:100%;padding:10px;">
+                            ${livreurs.map(l => `
+                                <option value="${Number(l.id)}">
+                                    ${l.nom || 'Sans nom'} - ${l.telephone || ''}
+                                </option>
+                            `).join('')}
                         </select>
                     </div>
                 `;
+
+                document.getElementById('modalConfirmBtn').style.display = 'inline-block';
+                document.getElementById('modalConfirmBtn').textContent = 'Confirmer l’assignation';
+
                 document.getElementById('modalConfirmBtn').onclick = async () => {
-                    const livreurId = document.getElementById('livreurSelect').value;
+                    const livreurId = Number(document.getElementById('livreurSelect').value);
+
+                    if (!livreurId) {
+                        showNotification('Erreur', 'Veuillez sélectionner un livreur.', 'error');
+                        return;
+                    }
+
                     try {
-                        const assignRes = await apiRequest(`/api/admin/commandes/${commandeId}/assigner-livreur`, {
-                            method: 'POST',
-                            body: JSON.stringify({ livreur_id: parseInt(livreurId) })
-                        });
-                        if (assignRes.ok) {
-                            showNotification('Succès', `Livreur assigné à la commande ${codeSuivi}`, 'success');
-                            closeModal();
-                            showLivreursTab('assignation');
-                        } else {
-                            showNotification('Erreur', 'Erreur lors de l\'assignation', 'error');
+                        const assignRes = await apiRequest(
+                            `/api/admin/commandes/${commandeId}/assigner-livreur`,
+                            {
+                                method: 'POST',
+                                body: JSON.stringify({ livreur_id: livreurId })
+                            }
+                        );
+
+                        if (!assignRes.ok) {
+                            const data = await assignRes.json().catch(() => ({}));
+                            showNotification(
+                                'Erreur',
+                                data.message || 'Erreur lors de l’assignation.',
+                                'error'
+                            );
+                            return;
                         }
-                    } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
+
+                        showNotification(
+                            'Succès',
+                            `Livreur assigné à la commande ${codeSuivi}.`,
+                            'success'
+                        );
+
+                        closeModal();
+                        await loadLivreurs('assignation');
+                    } catch (error) {
+                        console.error(error);
+                        showNotification('Erreur', 'Erreur réseau lors de l’assignation.', 'error');
+                    }
                 };
+
                 modal.classList.add('active');
-            } catch (error) { showNotification('Erreur', 'Erreur lors du chargement des livreurs', 'error'); }
+            } catch (error) {
+                console.error(error);
+                showNotification('Erreur', 'Impossible de charger les livreurs disponibles.', 'error');
+            }
         }
 
         async function lancerRechercheLivreur(commandeId) {
-            if (!confirm('Lancer la recherche de livreur pour cette commande ?')) return;
+            if (!confirm('Lancer ou relancer la recherche de livreur pour cette commande ?')) {
+                return;
+            }
+
             try {
-                const res = await apiRequest(`/api/admin/commandes/${commandeId}/rechercher-livreur`, { method: 'POST' });
-                const data = await res.json();
+                const res = await apiRequest(
+                    `/api/admin/commandes/${commandeId}/rechercher-livreur`,
+                    { method: 'POST' }
+                );
+
+                const data = await res.json().catch(() => ({}));
+
                 if (res.ok) {
-                    showNotification('🔍 Recherche lancée', `${data.notifications_envoyees} notification(s) envoyée(s) aux livreurs`,
-                        'success');
-                    showLivreursTab('assignation');
+                    const nombre = Number(data.notifications_envoyees || 0);
+
+                    showNotification(
+                        '🔍 Recherche lancée',
+                        nombre > 0
+                            ? `${nombre} livreur(s) notifié(s).`
+                            : 'La commande est visible dans l’espace des livreurs. Aucune notification mobile n’a été envoyée.',
+                        'success'
+                    );
+
+                    await loadLivreurs('assignation');
                 } else {
-                    showNotification('Erreur', 'Erreur lors du lancement de la recherche', 'error');
+                    showNotification(
+                        'Erreur',
+                        data.message || 'Erreur lors du lancement de la recherche.',
+                        'error'
+                    );
                 }
-            } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
+            } catch (error) {
+                console.error(error);
+                showNotification('Erreur', 'Erreur réseau lors du lancement de la recherche.', 'error');
+            }
         }
 
         async function validerLivreur(livreurId) {
             if (!confirm('Valider ce livreur ?')) return;
+
             try {
-                const res = await apiRequest(`/api/admin/livreurs/${livreurId}/valider`, { method: 'PUT' });
+                const res = await apiRequest(
+                    `/api/admin/livreurs/${livreurId}/valider`,
+                    { method: 'PUT' }
+                );
+
+                const data = await res.json().catch(() => ({}));
+
                 if (res.ok) {
-                    showNotification('✅ Livreur validé', 'Le livreur peut maintenant recevoir des livraisons', 'success');
-                    loadLivreurs();
+                    showNotification(
+                        '✅ Livreur validé',
+                        'Le livreur peut maintenant recevoir des livraisons.',
+                        'success'
+                    );
+
+                    await loadLivreurs('attente');
                 } else {
-                    showNotification('Erreur', 'Erreur lors de la validation', 'error');
+                    showNotification(
+                        'Erreur',
+                        data.message || 'Erreur lors de la validation.',
+                        'error'
+                    );
                 }
-            } catch (error) { showNotification('Erreur', 'Erreur réseau', 'error'); }
+            } catch (error) {
+                console.error(error);
+                showNotification('Erreur', 'Erreur réseau lors de la validation.', 'error');
+            }
         }
+
+
 
         // ========== CLIENTS ==========
         async function loadClients() {
